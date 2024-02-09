@@ -6,13 +6,22 @@
 
 void asm_case(unsigned char* src, unsigned char* dst, unsigned char* index)
 {
-    asm volatile ("vle.v v5, (%0)": : "r" (src));
+    /*asm volatile ("vle.v v5, (%0)": : "r" (src));
     asm volatile ("vrgather.vv v6, v5, v4");
-    asm volatile ("vse.v v6, (a1)");
+    asm volatile ("vse.v v6, (a1)");*/
+
+    /*asm volatile ("vle.v v6, (%0)": : "r" (src));
+    asm volatile ("vrgather.vv v10, v6, v4");
+    asm volatile ("vse.v v10, (a1)");*/
+
+    asm volatile ("vle.v v8, (%0)": : "r" (src));
+    asm volatile ("vrgather.vv v12, v8, v4");
+    asm volatile ("vse.v v12, (a1)");
 }
 
 void asm_loop(unsigned char* src, unsigned char* dst, unsigned char* index, int data_size, int vec_size)
 {
+    //asm volatile ("vle.v v4, (%0)": : "r" (index));
     asm volatile ("vle.v v4, (%0)": : "r" (index));
     for (int i = 0; i < data_size; i+=vec_size)
     {
@@ -62,13 +71,6 @@ void init_vector(unsigned char* src_data, unsigned char* dst_data, unsigned char
         ref_data[i+3] = 4;
     }
 
-    if (vec_size == 4)
-        index = new unsigned char [vec_size] { 2, 1, 0, 3 };
-    else if (vec_size == 8)
-        index = new unsigned char [vec_size] { 2, 1, 0, 3, 6, 5, 4, 7 };
-    else if (vec_size == 16)
-        index = new unsigned char [vec_size] { 2, 1, 0, 3, 6, 5, 4, 7, 10, 9, 8, 11, 14, 13, 12, 15 };
-
 }
 
 void validation(unsigned char* dst_data, unsigned char* ref_data, int data_size)
@@ -87,12 +89,21 @@ int main()
     int width = 1920;
     int height = 1080;
     int data_size = width*height*4;
-    int vec_size = 16;
+    int vec_size = 32;
 
     unsigned char* src_data {new unsigned char [data_size]};
     unsigned char* dst_data {new unsigned char [data_size]};
     unsigned char* ref_data {new unsigned char [data_size]};
     unsigned char* index;
+
+    if (vec_size == 4)
+        index = new unsigned char [vec_size] { 2, 1, 0, 3 };
+    else if (vec_size == 8)
+        index = new unsigned char [vec_size] { 2, 1, 0, 3, 6, 5, 4, 7 };
+    else if (vec_size == 16)
+        index = new unsigned char [vec_size] { 2, 1, 0, 3, 6, 5, 4, 7, 10, 9, 8, 11, 14, 13, 12, 15 };
+    else if (vec_size == 32)
+        index = new unsigned char [vec_size] { 2, 1, 0, 3, 6, 5, 4, 7, 10, 9, 8, 11, 14, 13, 12, 15, 18, 17, 16, 19, 22, 21, 20, 23, 26, 25, 24, 27, 30, 29, 28, 31  };
 
     init_vector(src_data, dst_data, ref_data, index, data_size, vec_size);
 
@@ -105,11 +116,13 @@ int main()
     std::cout << "The time: " << elapsed_ms_1.count() << " ms\n";*/
 
     auto begin = std::chrono::steady_clock::now();
-    size_t vl = vsetvl_e8m1(vec_size);
+    size_t vl = vsetvl_e8m4(vec_size);
     asm_loop(src_data, dst_data, index, data_size, vl);
     auto end = std::chrono::steady_clock::now();
     auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
     std::cout << "The time: " << elapsed_ms.count() << " ms\n";
+
+    std::cout << vl << std::endl;
 
     validation(dst_data, ref_data, data_size);
 
