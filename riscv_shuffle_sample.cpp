@@ -2,17 +2,18 @@
 #include <iostream>
 #include <chrono>
 
-#include <riscv_vector.h>
+// #include <riscv_vector.h> // Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.6.1 10.2.0
+#include <riscv-vector.h> // (V1.12.0) 8.4.0
 
 void asm_case(unsigned char* src, unsigned char* dst, unsigned char* index)
 {
-    /*asm volatile ("vle.v v5, (%0)": : "r" (src));
-    asm volatile ("vrgather.vv v6, v5, v4");
-    asm volatile ("vse.v v6, (a1)");*/
+    //asm volatile ("vle.v v5, (%0)": : "r" (src));
+    //asm volatile ("vrgather.vv v6, v5, v4");
+    //asm volatile ("vse.v v6, (a1)");
 
-    /*asm volatile ("vle.v v6, (%0)": : "r" (src));
-    asm volatile ("vrgather.vv v10, v6, v4");
-    asm volatile ("vse.v v10, (a1)");*/
+    //asm volatile ("vle.v v6, (%0)": : "r" (src));
+    //asm volatile ("vrgather.vv v10, v6, v4");
+    //asm volatile ("vse.v v10, (a1)");
 
     asm volatile ("vle.v v8, (%0)": : "r" (src));
     asm volatile ("vrgather.vv v12, v8, v4");
@@ -30,13 +31,46 @@ void asm_loop(unsigned char* src, unsigned char* dst, unsigned char* index, int 
 }
 
 void intrin_loop(unsigned char* src, unsigned char* dst, unsigned char* index, int data_size, int vec_size)
-{
-    vuint8m1_t vec_index = vle8_v_u8m1(index, vec_size);
+{   
+    // Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.6.1 10.2.0
+    // Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.8.1 10.4.0
+
+    // LMUL = 1
+    /*vuint8m1_t vec_index = vle8_v_u8m1(index, vec_size);
     for (int i = 0; i < data_size; i+=vec_size)
     {
         vuint8m1_t vec_src = vle8_v_u8m1(src+i, vec_size);
         vuint8m1_t vec_dst = vrgather_vv_u8m1(vec_src, vec_index, vec_size);
         vse8_v_u8m1(dst+i, vec_dst, vec_size);
+    }*/
+
+    // LMUL = 2
+    /*vuint8m2_t vec_index = vle8_v_u8m2(index, vec_size);
+    for (int i = 0; i < data_size; i+=vec_size)
+    {
+        vuint8m2_t vec_src = vle8_v_u8m2(src+i, vec_size);
+        vuint8m2_t vec_dst = vrgather_vv_u8m2(vec_src, vec_index, vec_size);
+        vse8_v_u8m2(dst+i, vec_dst, vec_size);
+    }*/
+    // (V1.12.0) 8.4.0
+
+    // LMUL = 1
+    /*vuint8m1_t vec_index = vle_v_u8m1(index, vec_size);
+    for (int i = 0; i < data_size; i+=vec_size)
+    {
+        vuint8m1_t vec_src = vle_v_u8m1(src+i, vec_size);
+        vuint8m1_t vec_dst = vrgather_vv_u8m1(vec_src, vec_index, vec_size);
+        vse_v_u8m1(dst+i, vec_dst, vec_size);
+    }*/
+
+    //LMUL = 2
+
+    vuint8m2_t vec_index = vle_v_u8m2(index, vec_size);
+    for (int i = 0; i < data_size; i+=vec_size)
+    {
+        vuint8m2_t vec_src = vle_v_u8m2(src+i, vec_size);
+        vuint8m2_t vec_dst = vrgather_vv_u8m2(vec_src, vec_index, vec_size);
+        vse_v_u8m2(dst+i, vec_dst, vec_size);
     }
 }
 
@@ -75,6 +109,8 @@ void init_vector(unsigned char* src_data, unsigned char* dst_data, unsigned char
 
 void validation(unsigned char* dst_data, unsigned char* ref_data, int data_size)
 {
+    //for (int i = 0; i < 32; i++)
+    //    std::cout << dst_data[i] << std::endl;
     for (int i = 0; i < data_size; i++)
     {
         if (dst_data[i] != ref_data[i])
@@ -107,17 +143,18 @@ int main()
 
     init_vector(src_data, dst_data, ref_data, index, data_size, vec_size);
 
-    /*unsigned char* dst_data_1 {new unsigned char [data_size]};
+    unsigned char* dst_data_1 {new unsigned char [data_size]};
     memset(dst_data_1, 0, data_size);
     auto begin_1 = std::chrono::steady_clock::now();
     scalar_loop(src_data, dst_data_1, data_size);
     auto end_1 = std::chrono::steady_clock::now();
     auto elapsed_ms_1 = std::chrono::duration_cast<std::chrono::milliseconds>(end_1 - begin_1);
-    std::cout << "The time: " << elapsed_ms_1.count() << " ms\n";*/
+    std::cout << "The time: " << elapsed_ms_1.count() << " ms\n";
 
     auto begin = std::chrono::steady_clock::now();
-    size_t vl = vsetvl_e8m4(vec_size);
-    asm_loop(src_data, dst_data, index, data_size, vl);
+    size_t vl = vsetvl_e8m2(vec_size);
+    //asm_loop(src_data, dst_data, index, data_size, vl);
+    intrin_loop(src_data, dst_data, index, data_size, vl);
     auto end = std::chrono::steady_clock::now();
     auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
     std::cout << "The time: " << elapsed_ms.count() << " ms\n";
